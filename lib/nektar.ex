@@ -9,8 +9,17 @@ defmodule Nektar do
   def init([]) do
     ports = Midiex.ports()
 
-    [input] = ports |> Enum.filter(fn port -> port.name == "PANORAMA P1 MIDI In" end)
-    [output] = ports |> Enum.filter(fn port -> port.name == "PANORAMA P1 MIDI out" end)
+    [input | _] =
+      ports
+      |> Enum.filter(fn port ->
+        port.direction == :input && String.contains?(port.name, "PANORAMA P1")
+      end)
+
+    [output | _] =
+      ports
+      |> Enum.filter(fn port ->
+        port.direction == :output && String.contains?(port.name, "PANORAMA P1")
+      end)
 
     :ok = Midiex.subscribe(input)
     output = Midiex.open(output)

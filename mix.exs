@@ -19,7 +19,7 @@ defmodule EosMidiController.MixProject do
         ]
       ],
       releases: [eos_midi_controller: []],
-      rustler_precompiled: [force_build: [midiex: true]],
+      rustler_precompiled: [force_build: [midiex: true]]
     ]
   end
 
@@ -35,6 +35,7 @@ defmodule EosMidiController.MixProject do
   defp deps do
     [
       {:dialyxir, "~> 1.1", only: [:dev], runtime: false},
+      # {:midiex, "~> 0.6.3"}
       {:midiex, git: "https://github.com/SocksHelp/midiex", branch: "update-nif-for-windows"},
       {:rustler, "~> 0.34.0", runtime: false},
     ]
