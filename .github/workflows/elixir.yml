@@ -21,10 +21,10 @@ jobs:
     - uses: actions/checkout@v3
     
     - name: Set up Elixir
-      uses: erlef/setup-beam@v1.11.1
+      uses: erlef/setup-beam@v1
       with:
-        elixir-version: '1.13.4' # Define the elixir version [required]
-        otp-version: '24.3.3' # Define the OTP version [required]
+        otp-version: '27'
+        elixir-version: '1.18'
         
     - name: Restore dependencies cache
       uses: actions/cache@v3
@@ -36,9 +36,15 @@ jobs:
     - name: Install dependencies
       run: mix deps.get
       
+    - name: Install dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt install libasound2-dev
+            
     - name: Build release
       env:
         MIX_ENV: prod
+        RUSTLER_PRECOMPILED_FORCE_BUILD_ALL: true
       run: mix release
       
     - name: ls
@@ -49,19 +55,19 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         mkdir release
-        tar -cjf release/xtouch_mapper_${{runner.os}}.tar.bz2 _build/prod/rel/xtouch_mapper
+        tar -cjf release/eos_midi_controller_${{runner.os}}.tar.bz2 _build/prod/rel/eos_midi_controller
             
     - name: Get artifacts (Windows)
       if: runner.os == 'Windows'
       run: |
         mkdir release
-        7z a -tzip release/xtouch_mapper_${{runner.os}}.zip _build/prod/rel/xtouch_mapper
+        7z a -tzip release/eos_midi_controller_${{runner.os}}.zip _build
       
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
-        name: xtouch_mapper_${{ runner.os }}
-        path: ${{github.workspace}}/_build/prod/rel/xtouch_mapper
+        name: eos_midi_controller_${{ runner.os }}
+        path: ${{github.workspace}}/_build/prod/rel/eos_midi_controller
 
     - name: GH Release
       if: startsWith(github.ref, 'refs/tags')

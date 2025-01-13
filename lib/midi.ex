@@ -20,42 +20,7 @@ defmodule Midi do
           | :active_sensing
           | :reset
 
-  def inc_seq(seq) do
-    <<seq::16>> = <<seq + 1::16>>
-    seq
-  end
-
-  defp encode_delta_time(x) do
-    case <<x::32>> do
-      <<0::25, d::7>> -> <<0::1, d::7>>
-      <<0::18, c::7, d::7>> -> <<1::1, c::7, 0::1, d::7>>
-      <<0::11, b::7, c::7, d::7>> -> <<1::1, b::7, 1::1, c::7, 0::1, d::7>>
-      <<0::4, a::7, b::7, c::7, d::7>> -> <<1::1, a::7, 1::1, b::7, 1::1, c::7, 0::1, d::7>>
-    end
-  end
-
-  defp decode_delta_time(<<0::1, d::7, rest::binary>>) do
-    <<x::32>> = <<0::25, d::7>>
-    {x, rest}
-  end
-
-  defp decode_delta_time(<<1::1, c::7, 0::1, d::7, rest::binary>>) do
-    <<x::32>> = <<0::18, c::7, d::7>>
-    {x, rest}
-  end
-
-  defp decode_delta_time(<<1::1, b::7, 1::1, c::7, 0::1, d::7, rest::binary>>) do
-    <<x::32>> = <<0::11, b::7, c::7, d::7>>
-    {x, rest}
-  end
-
-  defp decode_delta_time(<<1::1, a::7, 1::1, b::7, 1::1, c::7, 0::1, d::7, rest::binary>>) do
-    <<x::32>> = <<0::4, a::7, b::7, c::7, d::7>>
-    {x, rest}
-  end
-
   @spec encode_command(command) :: binary
-
   def encode_command({:note_off, channel, note, velocity}) do
     <<0b1000::4, channel::4, 0::1, note::7, 0::1, velocity::7>>
   end
@@ -221,80 +186,5 @@ defmodule Midi do
 
   def decode_command(<<0b11111111::8, rest::binary>>) do
     {:reset, rest}
-  end
-
-  def encode_commands(journalling, p, commands) do
-    journalling = if journalling, do: 1, else: 0
-    delta_time_0 = 1
-    p = if p, do: 1, else: 0
-
-    list =
-      Enum.into(commands, <<>>, fn {delta_time, command} ->
-        <<encode_delta_time(delta_time)::binary, encode_command(command)::binary>>
-      end)
-
-    <<max_small::4>> = <<-1::4>>
-
-    {big, len} =
-      if byte_size(list) > max_small do
-        {1, <<byte_size(list)::12>>}
-      else
-        {0, <<byte_size(list)::4>>}
-      end
-
-    <<big::1, journalling::1, delta_time_0::1, p::1, len::bitstring, list::binary>>
-  end
-
-  def encode_rtp(sequence_number, timestamp, ssrc, commands) do
-    header = %RTP.Header{
-      marker: Enum.count(commands) > 0,
-      payload_type: 97,
-      sequence_number: sequence_number,
-      timestamp: timestamp,
-      ssrc: ssrc
-    }
-
-    <<RTP.Header.encode(header)::binary, encode_commands(false, false, commands)::binary>>
-  end
-
-  def decode_rtp(data) do
-    {header, data} = RTP.Header.decode(data)
-
-    {_journalling, delta_time_0, _p, list, data} =
-      case data do
-        <<0::1, journalling::1, delta_time_0::1, p::1, len::4, list::binary-size(len),
-          data::binary>> ->
-          {journalling, delta_time_0, p, list, data}
-
-        <<1::1, journalling::1, delta_time_0::1, p::1, len::12, list::binary-size(len),
-          data::binary>> ->
-          {journalling, delta_time_0, p, list, data}
-      end
-
-    list =
-      case delta_time_0 do
-        0 -> <<0::8, list::binary>>
-        1 -> list
-      end
-
-    commands =
-      Stream.unfold(list, fn
-        <<>> ->
-          nil
-
-        data ->
-          case decode_delta_time(data) do
-            {_delta_time, <<>>} ->
-              nil
-
-            {delta_time, data} ->
-              {message, data} = decode_command(data)
-              {{delta_time, message}, data}
-          end
-      end)
-
-    _ = data
-
-    {header, commands}
   end
 end

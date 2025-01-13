@@ -1,13 +1,12 @@
-defmodule XtouchMapper do
+defmodule EosMidiController do
   @moduledoc """
-  Documentation for `XtouchMapper`.
+  Documentation for `EosMidiController`.
   """
 
   def start(_type, _args) do
     children = [
-      Xtouch,
-      {XAir, {192, 168, 240, 253}},
-      Mapper
+      Nektar,
+      {Eos, {127, 0, 0, 1}}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one)
